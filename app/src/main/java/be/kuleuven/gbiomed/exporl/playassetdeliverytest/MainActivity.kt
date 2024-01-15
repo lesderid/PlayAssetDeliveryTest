@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.google.android.play.core.assetpacks.AssetPackLocation
 import com.google.android.play.core.assetpacks.AssetPackManagerFactory
 import com.google.android.play.core.assetpacks.AssetPackState
 import com.google.android.play.core.assetpacks.model.AssetPackStatus.COMPLETED
@@ -64,16 +63,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val assetPackManager = AssetPackManagerFactory.getInstance(this.applicationContext)
+
         var assetPackStateString by mutableStateOf("(fetch not started)")
-        var assetListString by mutableStateOf("(not listed)")
-        var packBLocationString by mutableStateOf("(not gotten)")
-        var packBLocation by mutableStateOf<AssetPackLocation?>(null)
         var downloadProgress by mutableFloatStateOf(0.0f)
         var downloadComplete by mutableStateOf(false)
+        var packBLocation by mutableStateOf(assetPackManager.getPackLocation("pack_b"))
         var showImage by mutableStateOf<String?>(null)
-
-        val assetPackManager = AssetPackManagerFactory.getInstance(this.applicationContext)
-        val assetManager = this.applicationContext.assets
 
         assetPackManager.registerListener { assetPackState ->
             assetPackStateString = stringifyAssetPackState(assetPackState)
@@ -83,6 +79,8 @@ class MainActivity : ComponentActivity() {
 
             if (assetPackState.status() == COMPLETED) {
                 downloadComplete = true
+
+                packBLocation = assetPackManager.getPackLocation("pack_b")
             }
         }
 
@@ -96,49 +94,17 @@ class MainActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = assetListString
-                    )
-
-                    Button(
-                        onClick = {
-                            assetListString = assetManager.list("files")!!.joinToString(", ")
-                        }
-                    ) {
-                        Text("List")
-                    }
-
                     Text(text = assetPackStateString)
 
                     Button(
                         onClick = {
                             CoroutineScope(Dispatchers.Default).launch {
-                                val assetPackState = assetPackManager.requestFetch(arrayListOf("pack_b"))
-                                if (assetPackState.packStates()["pack_b"]!!.status() == COMPLETED) {
-                                    downloadComplete = true
-                                }
+                                assetPackManager.requestFetch(arrayListOf("pack_b"))
                             }
                         }
                     ) {
                         Text("Fetch asset pack B")
                     }
-
-                    if (downloadComplete) {
-                        Button(
-                            onClick = {
-                                Thread {
-                                    val assetPackLocation = assetPackManager.getPackLocation("pack_b")
-
-                                    packBLocationString = "location: ${assetPackLocation.toString()}"
-                                    packBLocation = assetPackLocation
-                                }.start()
-                            }
-                        ) {
-                            Text("Get pack B state")
-                        }
-                    }
-
-                    Text(packBLocationString)
 
                     Button(
                         onClick = { showImage = "A" }
